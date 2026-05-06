@@ -37,7 +37,7 @@ def scrape(roles: list[str]) -> list[Job]:
                     print(f"    wearedevelopers [{role}/{location} p{page}] error: {e}")
                     break
 
-                soup = BeautifulSoup(resp.text, "lxml")
+                soup = BeautifulSoup(resp.text, "html.parser")
                 cards = soup.select("article.wad4-job-card")
 
                 if not cards:

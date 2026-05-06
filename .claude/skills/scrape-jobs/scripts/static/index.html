@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Scraper</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 52px 16px 80px;
+      color: #1d1d1f;
+    }
+
+    .container { width: 100%; max-width: 540px; }
+
+    .header { margin-bottom: 32px; }
+    .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
+    .header p  { margin-top: 4px; font-size: 14px; color: #6e6e73; }
+
+    /* Card */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+      margin-bottom: 12px;
+    }
+
+    /* Field label */
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #6e6e73;
+      margin-bottom: 8px;
+    }
+
+    /* Tag input */
+    .tags-wrap {
+      border: 1.5px solid #d2d2d7;
+      border-radius: 10px;
+      padding: 7px 10px;
+      min-height: 46px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      cursor: text;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .tags-wrap:focus-within {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0,113,227,.12);
+    }
+    .tags-wrap.error { border-color: #ff453a; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #e8f2ff;
+      color: #0050a0;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .tag button {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      opacity: .6;
+      padding: 0;
+    }
+    .tag button:hover { opacity: 1; }
+    .tags-wrap input {
+      border: none;
+      outline: none;
+      font-size: 14px;
+      color: #1d1d1f;
+      flex: 1;
+      min-width: 160px;
+      background: transparent;
+    }
+    .field-hint { font-size: 12px; color: #aeaeb2; margin-top: 5px; }
+
+    /* Divider */
+    .divider { border: none; border-top: 1px solid #f2f2f7; margin: 20px 0; }
+
+    /* Sources grid */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .src-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1.5px solid #e5e5ea;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      user-select: none;
+    }
+    .src-item:has(input:checked) {
+      border-color: #0071e3;
+      background: #f0f7ff;
+    }
+    .src-item.disabled {
+      opacity: .4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .src-item input[type=checkbox] {
+      width: 15px;
+      height: 15px;
+      accent-color: #0071e3;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .src-item label {
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .src-badge {
+      margin-left: auto;
+      font-size: 10px;
+      background: #f2f2f7;
+      color: #aeaeb2;
+      border-radius: 4px;
+      padding: 1px 5px;
+      flex-shrink: 0;
+    }
+
+    /* LinkedIn toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .toggle-info p    { font-size: 14px; font-weight: 600; }
+    .toggle-info span { font-size: 12px; color: #aeaeb2; }
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .toggle input { display: none; }
+    .knob {
+      position: absolute;
+      inset: 0;
+      background: #d2d2d7;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .knob::before {
+      content: "";
+      position: absolute;
+      width: 20px; height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    }
+    .toggle input:checked + .knob { background: #0071e3; }
+    .toggle input:checked + .knob::before { transform: translateX(18px); }
+
+    /* Button */
+    .btn-scrape {
+      width: 100%;
+      padding: 13px;
+      background: #0071e3;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .15s, transform .1s, opacity .15s;
+    }
+    .btn-scrape:hover:not(:disabled) { background: #0077ed; }
+    .btn-scrape:active:not(:disabled) { transform: scale(.99); }
+    .btn-scrape:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* Progress */
+    .progress-card { display: none; margin-top: 12px; }
+    .progress-card.show { display: block; }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2px solid #e5e5ea;
+      border-top-color: #0071e3;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    .spinner.hidden { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-label { font-size: 14px; font-weight: 600; }
+
+    .log {
+      background: #f9f9fb;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      font-family: "SF Mono", Menlo, monospace;
+      color: #3c3c43;
+      max-height: 180px;
+      overflow-y: auto;
+      line-height: 1.75;
+    }
+    .log .ok  { color: #248a3d; }
+    .log .err { color: #d70015; }
+
+    /* Done banner */
+    .done-banner {
+      display: none;
+      margin-top: 12px;
+      background: #f2fbf5;
+      border: 1.5px solid #34c759;
+      border-radius: 10px;
+      padding: 14px 16px;
+      align-items: center;
+      gap: 12px;
+    }
+    .done-banner.show { display: flex; }
+    .done-icon  { font-size: 22px; line-height: 1; }
+    .done-text p    { font-size: 14px; font-weight: 600; }
+    .done-text span { font-size: 12px; color: #6e6e73; }
+    .btn-dl {
+      margin-left: auto;
+      padding: 8px 16px;
+      background: #34c759;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn-dl:hover { background: #2eb350; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Job Scraper</h1>
+    <p>Search German tech job boards for Berlin &amp; Remote roles</p>
+  </div>
+
+  <div class="card">
+    <!-- Roles -->
+    <label class="field-label">Job Roles</label>
+    <div class="tags-wrap" id="tagsWrap" onclick="document.getElementById('roleInput').focus()">
+      <input id="roleInput" type="text" placeholder="e.g. Software Engineer…" autocomplete="off" />
+    </div>
+    <p class="field-hint">Press Enter or comma to add — add as many roles as you like</p>
+
+    <hr class="divider" />
+
+    <!-- Sources -->
+    <label class="field-label">Sources</label>
+    <div class="sources-grid">
+      <div class="src-item">
+        <input type="checkbox" id="s3" value="wearedevelopers.com" checked />
+        <label for="s3">wearedevelopers.com</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrape button -->
+  <button class="btn-scrape" id="scrapeBtn" onclick="startScrape()">
+    Scrape Jobs
+  </button>
+  <p style="text-align:center; font-size:12px; color:#aeaeb2; margin-top:8px;">
+    Results will be saved as a <strong style="color:#6e6e73;">CSV file</strong> — ready to download when scraping completes
+  </p>
+
+  <!-- Progress -->
+  <div class="card progress-card" id="progressCard">
+    <div class="progress-header">
+      <div class="spinner" id="spinner"></div>
+      <span class="progress-label" id="progressLabel">Scraping…</span>
+    </div>
+    <div class="log" id="logArea"></div>
+    <div class="done-banner" id="doneBanner">
+      <span class="done-icon">✅</span>
+      <div class="done-text">
+        <p id="doneCount">Jobs found</p>
+        <span>CSV ready to download</span>
+      </div>
+      <a class="btn-dl" id="dlBtn" href="#">Download CSV</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const tags = [];
+
+  const roleInput = document.getElementById("roleInput");
+  const tagsWrap  = document.getElementById("tagsWrap");
+
+  roleInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(roleInput.value.replace(/,\s*$/, "").trim());
+      roleInput.value = "";
+    } else if (e.key === "Backspace" && roleInput.value === "" && tags.length) {
+      removeTag(tags.length - 1);
+    }
+  });
+
+  roleInput.addEventListener("blur", () => {
+    const v = roleInput.value.trim();
+    if (v) { addTag(v); roleInput.value = ""; }
+  });
+
+  function addTag(val) {
+    if (!val || tags.includes(val)) return;
+    tags.push(val);
+    renderTags();
+  }
+
+  function removeTag(i) {
+    tags.splice(i, 1);
+    renderTags();
+  }
+
+  function renderTags() {
+    tagsWrap.querySelectorAll(".tag").forEach(t => t.remove());
+    tags.forEach((t, i) => {
+      const el = document.createElement("span");
+      el.className = "tag";
+      el.innerHTML = `${t} <button type="button" onclick="removeTag(${i})">×</button>`;
+      tagsWrap.insertBefore(el, roleInput);
+    });
+  }
+
+  function selectedSources() {
+    return [...document.querySelectorAll(".sources-grid input:checked:not(:disabled)")]
+      .map(cb => cb.value);
+  }
+
+  function appendLog(msg) {
+    const el = document.createElement("div");
+    if (msg.includes("→") && msg.includes("found")) el.className = "ok";
+    if (msg.toLowerCase().includes("error"))        el.className = "err";
+    el.textContent = msg;
+    const log = document.getElementById("logArea");
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function generateCSV(jobs) {
+    const headers = ["Title", "Company", "Location", "URL", "Source", "Role", "Scraped At", "Applied"];
+    const rows = jobs.map(j => [j.title, j.company, j.location, j.url, j.source, j.role, j.scraped_at, ""]);
+    return [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+  }
+
+  async function startScrape() {
+    const pending = roleInput.value.trim();
+    if (pending) { addTag(pending); roleInput.value = ""; }
+
+    if (!tags.length) {
+      tagsWrap.classList.add("error");
+      roleInput.focus();
+      setTimeout(() => tagsWrap.classList.remove("error"), 1500);
+      return;
+    }
+
+    const btn = document.getElementById("scrapeBtn");
+    btn.disabled = true;
+    btn.textContent = "Scraping…";
+
+    const pc = document.getElementById("progressCard");
+    pc.classList.add("show");
+    document.getElementById("logArea").innerHTML = "";
+    document.getElementById("doneBanner").classList.remove("show");
+    document.getElementById("spinner").classList.remove("hidden");
+    document.getElementById("progressLabel").textContent = "Scraping…";
+
+    try {
+      const res = await fetch("/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roles:   tags,
+          sources: selectedSources(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        appendLog("Error: " + data.error);
+        document.getElementById("progressLabel").textContent = "Error";
+        return;
+      }
+
+      data.messages.forEach(appendLog);
+
+      document.getElementById("spinner").classList.add("hidden");
+      document.getElementById("progressLabel").textContent = "Done";
+
+      const banner = document.getElementById("doneBanner");
+      banner.classList.add("show");
+      document.getElementById("doneCount").textContent = `${data.count} unique jobs found`;
+
+      const csv  = generateCSV(data.jobs);
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const dlBtn = document.getElementById("dlBtn");
+      dlBtn.href = URL.createObjectURL(blob);
+      dlBtn.setAttribute("download", "jobs.csv");
+
+    } catch (err) {
+      appendLog("Error: " + err.message);
+      document.getElementById("progressLabel").textContent = "Error";
+      document.getElementById("spinner").classList.add("hidden");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Scrape Jobs";
+    }
+  }
+</script>
+</body>
+</html>
